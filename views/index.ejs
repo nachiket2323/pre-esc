@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Repository</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📁 File Repository</h1>
+        <p class="breadcrumb"><a href="/">Home</a> / uploads</p>
+        
+        <div class="actions">
+            <a href="/upload" class="btn">📤 Upload File</a>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Size</th>
+                    <th>Last Modified</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (items.length === 0) { %>
+                <tr>
+                    <td colspan="3" class="empty">No folders yet. Upload a file to create your folder.</td>
+                </tr>
+                <% } else { %>
+                <% items.forEach(item => { %>
+                <tr>
+                    <td>
+                        <% if (item.isDir) { %>
+                        <a href="/uploads/<%= item.name %>">📁 <%= item.name %></a>
+                        <% } else { %>
+                        📄 <%= item.name %>
+                        <% } %>
+                    </td>
+                    <td><%= item.size %></td>
+                    <td><%= item.modified %></td>
+                </tr>
+                <% }); %>
+                <% } %>
+            </tbody>
+        </table>
+        
+        <div class="curl-help">
+            <h3>curl Commands</h3>
+            <pre>curl http://localhost:3000/
+curl -F "file=@yourfile.txt" -F "username=yourname" http://localhost:3000/upload</pre>
+        </div>
+    </div>
+</body>
+</html>

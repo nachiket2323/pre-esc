@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Files - <%= user %>
+    </title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>📁 <%= user %>
+        </h1>
+        <p class="breadcrumb"><a href="/">Home</a> / <a href="/">uploads</a> / <%= user %>
+        </p>
+
+        <div class="actions">
+            <a href="/upload" class="btn">📤 Upload File</a>
+            <a href="/" class="btn btn-secondary">← Back</a>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>Size</th>
+                    <th>Last Modified</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (files.length===0) { %>
+                    <tr>
+                        <td colspan="4" class="empty">No files uploaded yet.</td>
+                    </tr>
+                    <% } else { %>
+                        <% files.forEach(file=> { %>
+                            <tr>
+                                <td>📄 <%= file.name %>
+                                </td>
+                                <td>
+                                    <%= file.size %>
+                                </td>
+                                <td>
+                                    <%= file.modified %>
+                                </td>
+                                <td><a href="/download/<%= file.name %>" class="download-btn">⬇️ Download</a></td>
+                            </tr>
+                            <% }); %>
+                                <% } %>
+            </tbody>
+        </table>
+
+        <div class="curl-help">
+            <h3>curl Commands</h3>
+            <pre>curl http://localhost:3000/uploads/<%= user %>
+curl -O http://localhost:3000/download/&lt;filename&gt;</pre>
+        </div>
+    </div>
+</body>
+
+</html>

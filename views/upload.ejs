@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload File</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>📤 Upload File</h1>
+        <p class="breadcrumb"><a href="/">Home</a> / upload</p>
+
+        <% if (typeof success !=='undefined' && success) { %>
+            <div class="success-msg">
+                <%= success %>
+                    <a href="/uploads/<%= clientId %>">View your files →</a>
+            </div>
+            <% } %>
+
+                <div class="upload-form">
+                    <form action="/upload" method="POST" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="username">Username (optional):</label>
+                            <input type="text" id="username" name="username" placeholder="Leave empty to use your IP">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="file">Select File:</label>
+                            <input type="file" id="file" name="file" required>
+                        </div>
+
+                        <button type="submit" class="btn">📤 Upload</button>
+                    </form>
+                </div>
+
+                <div class="curl-help">
+                    <h3>curl Upload</h3>
+                    <pre>curl -F "file=@yourfile.txt" -F "username=yourname" http://localhost:3000/upload</pre>
+                </div>
+
+                <a href="/" class="btn btn-secondary">← Back to Home</a>
+    </div>
+</body>
+
+</html>
