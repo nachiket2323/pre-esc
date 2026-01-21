@@ -4,8 +4,9 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 // Ensure uploads directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
@@ -139,7 +140,7 @@ app.get('/', (req, res) => {
             }
             output += '-'.repeat(60) + '\n';
             output += `Total: ${items.length} folder(s)\n`;
-            output += '\nUpload: curl -F "file=@yourfile.txt" -F "username=yourname" http://localhost:3000/upload\n';
+            output += `\nUpload: curl -F "file=@yourfile.txt" -F "username=yourname" ${BASE_URL}/upload\n`;
             res.type('text/plain').send(output);
         } else {
             res.render('index', { items, formatSize, formatDate });
@@ -190,7 +191,7 @@ app.get('/uploads/:user', (req, res) => {
             }
             output += '-'.repeat(80) + '\n';
             output += `Total: ${files.length} file(s)\n`;
-            output += `\nDownload: curl -O http://localhost:3000/download/<filename>\n`;
+            output += `\nDownload: curl -O ${BASE_URL}/download/<filename>\n`;
             res.type('text/plain').send(output);
         } else {
             res.render('directory', { user, files });
@@ -209,10 +210,10 @@ File Upload - curl Command
 ===========================
 
 Upload with username:
-  curl -F "file=@yourfile.txt" -F "username=yourname" http://localhost:3000/upload
+  curl -F "file=@yourfile.txt" -F "username=yourname" ${BASE_URL}/upload
 
 Upload with IP (auto):
-  curl -F "file=@yourfile.txt" http://localhost:3000/upload
+  curl -F "file=@yourfile.txt" ${BASE_URL}/upload
 
 `);
     } else {
@@ -339,22 +340,22 @@ File Repository - curl Commands
 ================================
 
 LIST folders:
-  curl http://localhost:3000/
+  curl ${BASE_URL}/
 
 LIST user files:
-  curl http://localhost:3000/uploads/<username>
+  curl ${BASE_URL}/uploads/<username>
 
 LIST all files:
-  curl http://localhost:3000/files
+  curl ${BASE_URL}/files
 
 UPLOAD file:
-  curl -F "file=@yourfile.txt" -F "username=yourname" http://localhost:3000/upload
+  curl -F "file=@yourfile.txt" -F "username=yourname" ${BASE_URL}/upload
 
 DOWNLOAD file:
-  curl -O http://localhost:3000/download/<filename>
+  curl -O ${BASE_URL}/download/<filename>
 
 HELP:
-  curl http://localhost:3000/help
+  curl ${BASE_URL}/help
 
 `);
 });

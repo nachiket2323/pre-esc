@@ -9,18 +9,18 @@ npm install
 npm start
 ```
 
-Server runs on http://localhost:3000
+Server runs on https://pre-esc.onrender.com
 
 ## curl Commands
 
 ### List folders
 ```bash
-curl http://localhost:3000/
+curl https://pre-esc.onrender.com/
 ```
 
 ### List user files
 ```bash
-curl http://localhost:3000/uploads/nachiket
+curl https://pre-esc.onrender.com/uploads/nachiket
 ```
 
 ### List all files
@@ -30,22 +30,22 @@ curl http://localhost:3000/files
 
 ### Upload file (with username)
 ```bash
-curl -F "file=@test.txt" -F "username=nachiket" http://localhost:3000/upload
+curl -F "file=@test.txt" -F "username=nachiket" https://pre-esc.onrender.com/upload
 ```
 
 ### Upload file (IP fallback)
 ```bash
-curl -F "file=@test.txt" http://localhost:3000/upload
+curl -F "file=@test.txt" https://pre-esc.onrender.com/upload
 ```
 
 ### Download file
 ```bash
-curl -O http://localhost:3000/download/filename.txt
+curl -O https://pre-esc.onrender.com/download/filename.txt
 ```
 
 ### Help
 ```bash
-curl http://localhost:3000/help
+curl https://pre-esc.onrender.com/help
 ```
 
 ## Folder Structure
