@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - File Repository</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔐 Admin Login</h1>
+        <p class="breadcrumb"><a href="/">Home</a> / <a href="/admin">Admin</a> / Login</p>
+
+        <% if (error) { %>
+            <div class="error-message">
+                <%= error %>
+            </div>
+            <% } %>
+
+                <form action="/admin/login" method="POST" class="upload-form">
+                    <div class="form-group">
+                        <label for="username">Username:</label>
+                        <input type="text" id="username" name="username" required autofocus>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn">Login</button>
+                </form>
+
+                <div class="actions" style="margin-top: 20px;">
+                    <a href="/admin" class="btn btn-secondary">← Back to Admin</a>
+                </div>
+    </div>
+</body>
+
+</html>

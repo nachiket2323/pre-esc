@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Files - File Repository</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔒 Admin Files</h1>
+        <p class="breadcrumb"><a href="/">Home</a> / Admin</p>
+
+        <div class="actions">
+            <% if (isAdmin) { %>
+                <a href="/admin/upload" class="btn">📤 Upload File</a>
+                <a href="/admin/logout" class="btn btn-secondary">🚪 Logout</a>
+                <% } else { %>
+                    <a href="/admin/login" class="btn">🔐 Login to Upload</a>
+                    <% } %>
+                        <a href="/" class="btn btn-secondary">← Back to Home</a>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Size</th>
+                    <th>Last Modified</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (files.length===0) { %>
+                    <tr>
+                        <td colspan="4" class="empty">No admin files yet.</td>
+                    </tr>
+                    <% } else { %>
+                        <% files.forEach(file=> { %>
+                            <tr>
+                                <td>📄 <%= file.name %>
+                                </td>
+                                <td>
+                                    <%= file.size %>
+                                </td>
+                                <td>
+                                    <%= file.modified %>
+                                </td>
+                                <td>
+                                    <a href="/admin/download/<%= file.name %>" class="btn btn-small">⬇️ Download</a>
+                                </td>
+                            </tr>
+                            <% }); %>
+                                <% } %>
+            </tbody>
+        </table>
+
+        <div class="curl-help">
+            <h3>curl Commands</h3>
+            <pre>curl https://pre-esc.onrender.com/admin
+curl -O https://pre-esc.onrender.com/admin/download/&lt;filename&gt;</pre>
+        </div>
+    </div>
+</body>
+
+</html>

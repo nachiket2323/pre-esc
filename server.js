@@ -2,15 +2,27 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const session = require('express-session');
+const bcrypt = require('bcrypt');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
+const ADMIN_DIR = path.join(__dirname, 'uploads', 'admin');
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
-// Ensure uploads directory exists
+// Admin credentials from environment variables
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD
+    ? bcrypt.hashSync(process.env.ADMIN_PASSWORD, 10)
+    : bcrypt.hashSync('admin123', 10); // Default password for development
+
+// Ensure uploads and admin directories exist
 if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+if (!fs.existsSync(ADMIN_DIR)) {
+    fs.mkdirSync(ADMIN_DIR, { recursive: true });
 }
 
 // View engine setup
@@ -21,8 +33,37 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
 
+// Session middleware
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: false, // Set to true in production with HTTPS
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+}));
+
 // Trust proxy for correct IP
 app.set('trust proxy', true);
+
+// Authentication middleware
+function requireAuth(req, res, next) {
+    if (req.session && req.session.isAdmin) {
+        return next();
+    }
+    const isCurl = req.headers['user-agent']?.includes('curl');
+    if (isCurl) {
+        return res.status(401).send('Error: Authentication required. Use web interface to login.\\n');
+    }
+    res.redirect('/admin/login');
+}
+
+// Make isAdmin available to all views
+app.use((req, res, next) => {
+    res.locals.isAdmin = req.session && req.session.isAdmin;
+    next();
+});
 
 // Sanitize username/IP - remove dangerous characters
 function sanitizeName(name) {
@@ -71,10 +112,9 @@ const storage = multer.diskStorage({
         cb(null, tempDir);
     },
     filename: (req, file, cb) => {
-        // Add timestamp to prevent overwrites
-        const timestamp = Date.now();
+        // Use sanitized original name
         const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-        cb(null, `${timestamp}_${safeName}`);
+        cb(null, safeName);
     }
 });
 
@@ -289,6 +329,78 @@ app.get('/download/:filename', (req, res) => {
     }
 });
 
+// Delete file - searches all user folders (curl DELETE) - PROTECTED
+app.delete('/delete/:filename', requireAuth, (req, res) => {
+    const filename = req.params.filename;
+
+    try {
+        const users = fs.readdirSync(UPLOAD_DIR);
+        for (const user of users) {
+            const userDir = path.join(UPLOAD_DIR, user);
+            if (!fs.statSync(userDir).isDirectory()) continue;
+
+            const filepath = path.join(userDir, filename);
+            if (fs.existsSync(filepath)) {
+                // Security check
+                if (!filepath.startsWith(UPLOAD_DIR)) {
+                    return res.status(403).send('Access denied.\n');
+                }
+
+                fs.unlinkSync(filepath);
+                return res.send(`Success: File "${filename}" deleted.\n`);
+            }
+        }
+        res.status(404).send(`Error: File "${filename}" not found.\n`);
+    } catch (err) {
+        res.status(500).send(`Error: ${err.message}\n`);
+    }
+});
+
+// Delete file - web handler (POST) - PROTECTED
+app.post('/delete', requireAuth, upload.none(), (req, res) => {
+    const filename = req.body.filename;
+    const user = req.body.user; // To redirect back to correct folder
+
+    if (!filename) {
+        return res.status(400).render('error', { message: 'Filename required' });
+    }
+
+    try {
+        const users = fs.readdirSync(UPLOAD_DIR);
+        let deleted = false;
+
+        for (const u of users) {
+            const userDir = path.join(UPLOAD_DIR, u);
+            if (!fs.statSync(userDir).isDirectory()) continue;
+
+            const filepath = path.join(userDir, filename);
+            if (fs.existsSync(filepath)) {
+                // Security check
+                if (!filepath.startsWith(UPLOAD_DIR)) {
+                    return res.status(403).render('error', { message: 'Access denied' });
+                }
+
+                fs.unlinkSync(filepath);
+                deleted = true;
+                break;
+            }
+        }
+
+        if (deleted) {
+            // Redirect back to user folder if provided, else home
+            if (user) {
+                res.redirect(`/uploads/${user}`);
+            } else {
+                res.redirect('/');
+            }
+        } else {
+            res.status(404).render('error', { message: `File "${filename}" not found` });
+        }
+    } catch (err) {
+        res.status(500).render('error', { message: err.message });
+    }
+});
+
 // List all files (flat view for admin)
 app.get('/files', (req, res) => {
     const isCurl = req.headers['user-agent']?.includes('curl');
@@ -354,10 +466,180 @@ UPLOAD file:
 DOWNLOAD file:
   curl -O ${BASE_URL}/download/<filename>
 
+DELETE file:
+  curl -X DELETE ${BASE_URL}/delete/<filename>
+
 HELP:
   curl ${BASE_URL}/help
 
 `);
+});
+
+// ============ ADMIN ROUTES ============
+
+// Multer storage for admin uploads
+const adminStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, ADMIN_DIR);
+    },
+    filename: (req, file, cb) => {
+        const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+        cb(null, safeName);
+    }
+});
+
+const adminUpload = multer({
+    storage: adminStorage,
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
+});
+
+// Admin login page (GET)
+app.get('/admin/login', (req, res) => {
+    if (req.session && req.session.isAdmin) {
+        return res.redirect('/admin');
+    }
+    res.render('login', { error: null });
+});
+
+// Admin login handler (POST)
+app.post('/admin/login', (req, res) => {
+    const { username, password } = req.body;
+
+    if (username === ADMIN_USERNAME && bcrypt.compareSync(password, ADMIN_PASSWORD_HASH)) {
+        req.session.isAdmin = true;
+        res.redirect('/admin');
+    } else {
+        res.render('login', { error: 'Invalid username or password' });
+    }
+});
+
+// Admin logout
+app.get('/admin/logout', (req, res) => {
+    req.session.destroy((err) => {
+        res.redirect('/admin');
+    });
+});
+
+// Admin directory listing (PUBLIC - anyone can view/download)
+app.get('/admin', (req, res) => {
+    try {
+        const files = [];
+        if (fs.existsSync(ADMIN_DIR)) {
+            const entries = fs.readdirSync(ADMIN_DIR);
+            for (const filename of entries) {
+                const filepath = path.join(ADMIN_DIR, filename);
+                const stat = fs.statSync(filepath);
+                if (stat.isFile()) {
+                    files.push({
+                        name: filename,
+                        size: formatSize(stat.size),
+                        sizeBytes: stat.size,
+                        modified: formatDate(stat.mtime)
+                    });
+                }
+            }
+        }
+
+        const isCurl = req.headers['user-agent']?.includes('curl');
+        if (isCurl) {
+            let output = 'Admin Directory\\n';
+            output += '='.repeat(80) + '\\n';
+            output += 'Filename'.padEnd(45) + 'Size'.padEnd(15) + 'Modified\\n';
+            output += '-'.repeat(80) + '\\n';
+            for (const file of files) {
+                output += file.name.substring(0, 44).padEnd(45) + file.size.padEnd(15) + file.modified + '\\n';
+            }
+            output += '-'.repeat(80) + '\\n';
+            output += `Total: ${files.length} file(s)\\n`;
+            output += `\\nDownload: curl -O ${BASE_URL}/admin/download/<filename>\\n`;
+            res.type('text/plain').send(output);
+        } else {
+            res.render('admin-directory', { files });
+        }
+    } catch (err) {
+        res.status(500).render('error', { message: err.message });
+    }
+});
+
+// Admin upload page (GET) - PROTECTED
+app.get('/admin/upload', requireAuth, (req, res) => {
+    const isCurl = req.headers['user-agent']?.includes('curl');
+    if (isCurl) {
+        res.type('text/plain').send('Error: Use web interface to upload admin files.\\n');
+    } else {
+        res.render('admin-upload', { success: null });
+    }
+});
+
+// Admin upload handler (POST) - PROTECTED
+app.post('/admin/upload', requireAuth, adminUpload.single('file'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).render('error', { message: 'No file uploaded' });
+    }
+
+    const msg = `"${req.file.originalname}" uploaded to admin folder (${formatSize(req.file.size)})`;
+    res.render('admin-upload', { success: msg });
+});
+
+// Admin download (PUBLIC - anyone can download)
+app.get('/admin/download/:filename', (req, res) => {
+    const filename = req.params.filename;
+    const filepath = path.join(ADMIN_DIR, filename);
+    const isCurl = req.headers['user-agent']?.includes('curl');
+
+    // Security check
+    if (!filepath.startsWith(ADMIN_DIR)) {
+        return res.status(403).send('Access denied.\\n');
+    }
+
+    if (!fs.existsSync(filepath)) {
+        if (isCurl) {
+            return res.status(404).send(`Error: File "${filename}" not found.\\n`);
+        }
+        return res.status(404).render('error', { message: `File "${filename}" not found` });
+    }
+
+    res.download(filepath, filename, (err) => {
+        if (err && !res.headersSent) {
+            if (isCurl) {
+                res.status(500).send(`Error: ${err.message}\\n`);
+            } else {
+                res.status(500).render('error', { message: err.message });
+            }
+        }
+    });
+});
+
+// Admin delete folder (POST) - PROTECTED
+app.post('/admin/delete-folder', requireAuth, (req, res) => {
+    const folderName = req.body.folderName;
+
+    if (!folderName) {
+        return res.status(400).render('error', { message: 'Folder name required' });
+    }
+
+    // Prevent deleting admin folder or special system folders
+    if (folderName === 'admin' || folderName === '.temp') {
+        return res.status(403).render('error', { message: 'Cannot delete system folders' });
+    }
+
+    const folderPath = path.join(UPLOAD_DIR, folderName);
+
+    // Security check
+    if (!folderPath.startsWith(UPLOAD_DIR)) {
+        return res.status(403).render('error', { message: 'Access denied' });
+    }
+
+    if (fs.existsSync(folderPath)) {
+        try {
+            fs.rmSync(folderPath, { recursive: true, force: true });
+            res.redirect('/');
+        } catch (err) {
+            res.status(500).render('error', { message: `Failed to delete folder: ${err.message}` });
+        }
+    } else {
+        res.status(404).render('error', { message: 'Folder not found' });
+    }
 });
 
 // 404 handler

@@ -46,7 +46,21 @@
                                 <td>
                                     <%= file.modified %>
                                 </td>
-                                <td><a href="/download/<%= file.name %>" class="download-btn">⬇️ Download</a></td>
+                                <td>
+                                    <div style="display: flex; gap: 5px;">
+                                        <a href="/download/<%= file.name %>" class="download-btn">⬇️ Download</a>
+                                        <% if (locals.isAdmin) { %>
+                                            <form action="/delete" method="POST" style="display:inline;"
+                                                onsubmit="return confirm('Are you sure you want to delete this file?');">
+                                                <input type="hidden" name="filename" value="<%= file.name %>">
+                                                <input type="hidden" name="user" value="<%= user %>">
+                                                <button type="submit" class="btn btn-danger"
+                                                    style="padding: 5px 10px; font-size: 12px; background: #dc3545;">🗑️
+                                                    Delete</button>
+                                            </form>
+                                            <% } %>
+                                    </div>
+                                </td>
                             </tr>
                             <% }); %>
                                 <% } %>
@@ -56,7 +70,8 @@
         <div class="curl-help">
             <h3>curl Commands</h3>
             <pre>curl https://pre-esc.onrender.com/uploads/<%= user %>
-curl -O https://pre-esc.onrender.com/download/&lt;filename&gt;</pre>
+curl -O https://pre-esc.onrender.com/download/&lt;filename&gt;
+curl -X DELETE https://pre-esc.onrender.com/delete/&lt;filename&gt;</pre>
         </div>
     </div>
 </body>
